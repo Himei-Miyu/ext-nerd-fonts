@@ -264,6 +264,8 @@ Examples:
 ./install.sh install <FontName>
 ./install.sh install Hack
 ./install.sh install HeavyData
+./install.sh install <FontName1> <FontName2> ...
+./install.sh install Hack HeavyData
 ./install.sh install all
 ./install.sh install # interactive mode
 VERBOSE=3 ./install.sh install DaddyTimeMono
