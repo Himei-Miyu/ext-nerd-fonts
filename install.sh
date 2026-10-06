@@ -125,7 +125,7 @@ The target directory is determined to be
 EOF
 }
 cmd_install() {
-    local font_names="${@}"
+    local font_names="${1-}"
     local tmp_folder
     local font_list
     local font_list_size
