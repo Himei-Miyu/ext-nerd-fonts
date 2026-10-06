@@ -21,7 +21,7 @@
 # Author: Markus Heiser <markus.heiser@darmarit.de>
 # Keywords: NerdFonts
 #
-scriptversion="2.0.1"
+scriptversion="3.0.0"
 # Nerd Fonts Version: 3.5.0
 
 # shellcheck enable=require-variable-braces
@@ -125,7 +125,7 @@ The target directory is determined to be
 EOF
 }
 cmd_install() {
-    local font_names=("${@}")
+    local font_names="${@}"
     local tmp_folder
     local font_list
     local font_list_size
@@ -135,15 +135,14 @@ cmd_install() {
     font_list_size=$(sh_count ${font_list})
 
     if [ "${font_list_size}" -eq 0 ]; then
-        msg_err "no fonts to install"
-        return 42
+        sh_die_err 42 "no fonts to install"
     fi
 
-    if [ "${#font_names[@]}" -eq 1 ] && [ "${font_names[0]}" = "all" ]; then
+    # shellcheck disable=SC2086 # We actually need word splitting of font_names here in the else
+    if sh_in_array "all" ${font_names}; then
         msg_info "install all ${font_list_size} fonts"
         msg_warn "installing all fonts will take its time / time for a coffee break"
-        font_list=($font_list)
-    elif [ "${#font_names[@]}" -eq 0 ]; then
+    elif [ "${font_names}" = "" ]; then
         PS3="Enter a number: "
         select font_name in ${font_list} "all"; do
             # shellcheck disable=SC2086 # We actually need word splitting of font_list here in the else
@@ -164,13 +163,13 @@ cmd_install() {
             sh_die_err 42 "font ${font_name} does not exists in release ${GH_RELEASE_TAG}"
         font_list="${font_name}"
     else
-        font_list=("${font_names[@]}")
+        font_list="${font_names}"
     fi
     msg_info "install fonts into folder: ${FONT_DIR}"
     tmp_folder="$(mktemp -d)"
     msg_debug "Workdir ${tmp_folder}"
     cd -- "${tmp_folder}" >/dev/null 2>&1 || sh_die_err 42 "can't cd ${tmp_folder}"
-    for font in "${font_list[@]}"; do
+    for font in ${font_list}; do
         nerd_install_font "${font}"
     done
     cd - >/dev/null 2>&1
