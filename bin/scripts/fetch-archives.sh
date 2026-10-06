@@ -60,7 +60,7 @@ else
     releasedata=$(curl -H "${AUTH}" -Lf "https://api.github.com/repos/ryanoasis/nerd-fonts/releases/latest")
     versiontag=$(jq -r ".tag_name" <<< "${releasedata}")
     # shellcheck disable=SC2207 # We know the output is well-behaved
-    assets=( $(jq -r ".[] | select(.tag_name == \"${versiontag}\") | .assets[] | \"\(.name)|\(.url)\" " <<< "${releasedata}") )
+    assets=( $(jq -r ".assets[] | \"\(.name)|\(.url)\" " <<< "${releasedata}") )
 fi
 
 echo "${LINE_PREFIX} Found ${#assets[@]} artifacts"
