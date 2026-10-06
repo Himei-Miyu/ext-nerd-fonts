@@ -11,6 +11,12 @@ _Please explain the changes you made here._
 - [ ] If this contains a font/glyph add its origin as background info below (e.g. URL)
 - [ ] Verified the license of any newly added font, glyph, or glyph set. License is: xxx
 
+----
+
+- [ ] I did not use AI/LLM to create this PR, or
+- [ ] I disclosed the tool/model below and reviewed its output. I did not attribute commits to AI and will answer maintainer questions and review comments myself without AI/LLM. Or
+- [ ] I am an AI/LLM agent
+
 #### What does this Pull Request (PR) do?
 
 #### How should this be manually tested?

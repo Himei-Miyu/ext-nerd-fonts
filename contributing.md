@@ -7,6 +7,7 @@
 **Often it can be helpful to discuss a PR first in an Issue** to avoid later problems or re-design when it is in review.
 
 * Fork the project and submit a Pull Request (PR)
+  * Use the pull request template and answer the questions
   * Explain what the PR fixes or improves
   * Screenshots for bonus points
 * Use sensible commit messages
@@ -115,6 +116,12 @@ Codepoints in the code set are a scarce resource, so in general it is unlikely t
 
 * Use 4 spaces for indentation
 * Consider PEP8 and other (@todo)
+
+## AI/LLM usage
+
+* The use of AI/LLM (especially for code parts of a PR) need to be flagged in the pull request description.
+* Commits containing AI/LLM generated code needs to disclose it in the commit message.
+* This helps us in the review process.
 
 <!-- link references -->
 
