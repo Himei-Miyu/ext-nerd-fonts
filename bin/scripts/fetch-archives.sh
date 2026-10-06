@@ -28,6 +28,7 @@ outputdir=$(realpath "${scripts_root_dir}/../../archives")
 # Set it in the GITHUB_TOKEN variable when calling
 if [ -z "${GITHUB_TOKEN}" ]; then
     echo "${LINE_PREFIX} No GITHUB_TOKEN set, limiting to public releases"
+    AUTH="X-noop;"
 else
     echo "${LINE_PREFIX} Using GITHUB_TOKEN ${GITHUB_TOKEN}"
     AUTH="Authorization: Bearer ${GITHUB_TOKEN}"
