@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Nerd Fonts Version: 3.5.1
-# Script Version: 2.1.0
+# Script Version: 2.1.1
 #
 # Fetches the current release files.
 # It fetches the latest release, not release candidate.
@@ -23,6 +23,7 @@ set -e
 LINE_PREFIX="# [Nerd Fonts] "
 scripts_root_dir="$(cd "$(dirname "$0")" && pwd)"
 outputdir=$(realpath "${scripts_root_dir}/../../archives")
+mkdir -p "${outputdir}" >/dev/null
 
 # For draft releases a read-repository-token is needed to access the assets
 # Set it in the GITHUB_TOKEN variable when calling
@@ -56,11 +57,16 @@ if [ "${versiontag}" != "latest" ]; then
     # shellcheck disable=SC2207 # We know the output is well-behaved
     assets=( $(jq -r ".[] | select(.tag_name == \"${versiontag}\") | .assets[] | \"\(.name)|\(.url)\" " "${releasedata}") )
 else
-    echo "${LINE_PREFIX} Fetching latest release metadata"
-    releasedata=$(curl -H "${AUTH}" -Lf "https://api.github.com/repos/ryanoasis/nerd-fonts/releases/latest")
-    versiontag=$(jq -r ".tag_name" <<< "${releasedata}")
+    latestdata=${outputdir}/latest.json
+    if [ -f "${latestdata}" ]; then
+        echo "${LINE_PREFIX} Reusing existing latest.json file. Remove file to force update."
+    else
+        echo "${LINE_PREFIX} Fetching latest release metadata"
+        curl -H "${AUTH}" -Lf "https://api.github.com/repos/ryanoasis/nerd-fonts/releases/latest" -o "${latestdata}"
+    fi
+    versiontag=$(jq -r ".tag_name" "${latestdata}")
     # shellcheck disable=SC2207 # We know the output is well-behaved
-    assets=( $(jq -r ".assets[] | \"\(.name)|\(.url)\" " <<< "${releasedata}") )
+    assets=( $(jq -r ".assets[] | \"\(.name)|\(.url)\" " "${latestdata}") )
 fi
 
 echo "${LINE_PREFIX} Found ${#assets[@]} artifacts"
