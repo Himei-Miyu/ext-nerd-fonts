@@ -36,6 +36,7 @@ scriptversion="2.1.0"
 # and that also needs to be checked
 
 set -euo pipefail
+shopt -s nocasematch
 if shopt | grep -q inherit_errexit; then
     shopt -s inherit_errexit
 fi
@@ -296,8 +297,17 @@ nerd_font_list() {
         done
 }
 
+nerd_find_spelling() {
+    nerd_released_archives |
+        while IFS= read -r line; do
+            if [[ "${1}" =~ ${line%%|*} ]]; then
+                echo "${line%%|*}"
+                return
+            fi
+        done
+}
+
 nerd_find_asset_id() {
-    local aid=
     nerd_released_archives |
         while IFS= read -r line; do
             if [ "${line%%|*}" = "${1}" ]; then
@@ -310,20 +320,25 @@ nerd_install_font() {
     # usage:  nerd_install_font <font name>
 
     local aid
-    aid=$(nerd_find_asset_id "${1}")
-    if [ -z "${aid}" ]; then
-        sh_die_err 42 "Can not find asset ID of ${1}"
+    local fontname
+    fontname=$(nerd_find_spelling "${1}")
+    if [ -z "${fontname}" ]; then
+        sh_die_err 3 "Can not find font ${1}"
     fi
-    msg_info "download & install font: ${1} (asset ${aid})"
+    aid=$(nerd_find_asset_id "${fontname}")
+    if [ -z "${aid}" ]; then
+        sh_die_err 42 "Can not find asset ID of ${fontname}"
+    fi
+    msg_info "download & install font: ${fontname} (asset ${aid})"
     (
         set -e
         local dst
-        gh_download_asset "${1}.tar.xz" "${aid}"
-        mkdir -p "${1}"
-        tar xf "${1}.tar.xz" -C "${1}"
+        gh_download_asset "${fontname}.tar.xz" "${aid}"
+        mkdir -p "${fontname}"
+        tar xf "${fontname}.tar.xz" -C "${fontname}"
         mkdir -p "${FONT_DIR}"
         local found_one=
-        for filename in "${1}"/*; do
+        for filename in "${fontname}"/*; do
             if [[ "${filename##*.}" =~ ${FONT_FORMATS} ]]; then
                 dst="${FONT_DIR}/$(basename "${filename}")"
                 msg_debug "install font: ${dst}"
@@ -332,7 +347,7 @@ nerd_install_font() {
             fi
         done
         if [ -z "${found_one}" ]; then
-            msg_warn "no font file matching \"${FONT_FORMATS}\" for ${1}"
+            msg_warn "no font file matching \"${FONT_FORMATS}\" for ${fontname}"
         fi
     )
     sh_prompt_err $?
