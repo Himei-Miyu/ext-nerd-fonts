@@ -43,7 +43,7 @@ fi
 # environment
 # -----------
 
-VERBOSE="${VERBOSE:-1}"
+VERBOSE="${VERBOSE:-0}"
 TERM="${TERM:-}"
 # https://docs.github.com/de/rest/releases/releases?#get-a-release-by-tag-name
 GH_API_VERSION="${GH_API_VERSION:-2022-11-28}"
@@ -78,13 +78,14 @@ fi
 _REQUIREMENTS="curl mktemp sed tar wc"
 _GH_RELEASE_DATA=
 _GH_ASSET_DATA=
+invoke_help=
 
 # command line interface
 # ----------------------
 
 cmd_help() {
     cat <<EOF
-Usage: $(basename "$0") <cmd>
+Usage: $(basename "$0") [option] <cmd>
 
 Install and update Nerd Fonts [1] from the GitHub releases [2].
 See \`$(basename "$0") install --help\` for details.
@@ -99,6 +100,11 @@ cmd:
   install   : selectively install (or update) a font, a list of fonts or *all* fonts
   remove    : uninstall all Nerd Fonts
 
+options:
+  -s, --silent                        give no progress messages (resets verbose)
+  -v, --verbose                       increase verbosity level (up to 3 times)
+  -h, --help                          show this help message
+
 required tools:
   ${_REQUIREMENTS}
 EOF
@@ -106,13 +112,13 @@ EOF
 
 cmd_install_help() {
     cat <<EOF
-Usage: $(basename "$0") install [<fontname>|all]
+Usage: $(basename "$0") install [--help] [<fontname>|all]...
 
 fontname:
   The name of the font to be installed can be specified, or 'all' can be
   specified to install all fonts.
 
-Selectively install one font or *all* fonts to FONT_DIR.
+Selectively install font(s) or *all* fonts to FONT_DIR.
 
 If no argument is given a list of available fonts will be displayed,
 and a font can be selected from the list.
@@ -460,8 +466,31 @@ scripts_requires() {
 }
 
 main() {
+    while getopts ":hsv-:" option; do
+        case "${option}" in
+            \?) sh_die_err 2 "Invalid option -${OPTARG}";;
+            h) invoke_help=TRUE;;
+            s) VERBOSE=0;;
+            v) VERBOSE=$(( VERBOSE + 1 ));;
+            -) case "${OPTARG}" in
+                help) invoke_help=TRUE;;
+                silent) VERBOSE=0;;
+                verbose) VERBOSE=$(( VERBOSE + 1 ));;
+                *) sh_die_err 2 "Invalid option --${OPTARG}";;
+            esac;;
+        esac
+    done
+
+    shift $((OPTIND - 1))
+
     local cmd="${1:-help}"
     shift || true
+    # Pull --help out of the remaining parameters
+    sh_in_array "--help" "$@" && invoke_help=TRUE
+    local args=" $* "
+    # shellcheck disable=SC2086 # We actually need word splitting to create new parameters
+    set -- ${args// --help / }
+
     # shellcheck disable=SC2086 # We actually need word splitting of _REQUIREMENTS here
     scripts_requires ${_REQUIREMENTS} || sh_die_err $? "first install missing requirements"
 
@@ -472,20 +501,22 @@ main() {
         AUTH="X-noop;"
     fi
 
-    if [ "${cmd}" = "help" ] || [ "${cmd}" = "--help" ]; then
+    if [ "${cmd}" = "help" ]; then
         cmd_help
     else
         if [ "${cmd}" = "list" ] || [ "${cmd}" = "install" ]; then
-            # Needed to fill 'cache' environment variables:
-            gh_release_data >/dev/null
-            nerd_released_archives >/dev/null
+            if [ -z "${invoke_help}" ]; then
+                # Needed to fill 'cache' environment variables:
+                gh_release_data >/dev/null
+                nerd_released_archives >/dev/null
+            fi
         fi
         _type="$(type -t "cmd_${cmd}")" || true
         if [ "${_type}" != "function" ]; then
             sh_die_err 42 "unknown command: ${cmd} / use --help"
         fi
 
-        if [ "${1-}" = '--help' ]; then
+        if [ -n "${invoke_help}" ]; then
             _type="$(type -t "cmd_${cmd}_help")" || true
             if [ "${_type}" = 'function' ]; then
                 "cmd_${cmd}_help"
