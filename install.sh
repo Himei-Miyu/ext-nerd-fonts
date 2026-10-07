@@ -80,6 +80,7 @@ _REQUIREMENTS="curl mktemp sed tar wc"
 _GH_RELEASE_DATA=
 _GH_ASSET_DATA=
 invoke_help=
+archive_suffix=.tar.xz
 
 # command line interface
 # ----------------------
@@ -105,6 +106,7 @@ options:
   -r, --release=TAG                   specify release tag, default is 'latest'
   -s, --silent                        give no progress messages (resets verbose)
   -v, --verbose                       increase verbosity level (up to 3 times)
+  -z, --zip                           use zip archive (needed for older releases)
   -h, --help                          show this help message
 
 required tools:
@@ -142,7 +144,7 @@ cmd_install() {
     font_list_size=$(sh_count ${font_list})
 
     if [ "${font_list_size}" -eq 0 ]; then
-        sh_die_err 42 "no fonts to install"
+        sh_die_err 5 "no fonts to install"
     fi
 
     if sh_in_array "all" "$@"; then
@@ -265,7 +267,6 @@ EOF
 
 nerd_assemble_released_archives() {
     # Returns pairs of "Archive-basename asset-ID"
-    local archive_suffix=.tar.xz
     local assets_regex="^ *\"assets\":"
     local aid_regex="^ *\"id\":"
     local name_regex="^ *\"name\":"
@@ -301,6 +302,9 @@ nerd_assemble_released_archives() {
 
 nerd_released_archives() {
     _GH_ASSET_DATA="${_GH_ASSET_DATA:-$(nerd_assemble_released_archives)}"
+    if [ "${archive_suffix}" != ".zip" ] && [ -z "${_GH_ASSET_DATA}" ]; then
+        sh_die_err 5 "no .xz archives found, maybe use --zip"
+    fi
     printf "%s\n" "${_GH_ASSET_DATA}"
 }
 
@@ -346,13 +350,17 @@ nerd_install_font() {
     if [ -z "${aid}" ]; then
         sh_die_err 42 "Can not find asset ID of ${fontname}"
     fi
-    msg_info "download & install font: ${fontname} (asset ${aid})"
+    msg_info "download & install font: ${fontname} (${GH_RELEASE_TAG}, asset ${aid})"
     (
         set -e
         local dst
-        gh_download_asset "${fontname}.tar.xz" "${aid}"
+        gh_download_asset "${fontname}${archive_suffix}" "${aid}"
         mkdir -p "${fontname}"
-        tar xf "${fontname}.tar.xz" -C "${fontname}"
+        if [ "${archive_suffix}" != ".zip" ]; then
+            tar xf "${fontname}${archive_suffix}" -C "${fontname}"
+        else
+            unzip -j -q "${fontname}${archive_suffix}" -d "${fontname}"
+        fi
         mkdir -p "${FONT_DIR}"
         local found_one=
         for filename in "${fontname}"/*; do
@@ -499,18 +507,20 @@ scripts_requires() {
 }
 
 main() {
-    while getopts ":hr:sv-:" option; do
+    while getopts ":hr:svz-:" option; do
         case "${option}" in
             \?) sh_die_err 2 "Invalid option -${OPTARG}";;
             h) invoke_help=TRUE;;
             r) GH_RELEASE_TAG=$OPTARG;;
             s) VERBOSE=0;;
             v) VERBOSE=$(( VERBOSE + 1 ));;
+            z) archive_suffix=.zip;;
             -) case "${OPTARG}" in
                 help) invoke_help=TRUE;;
                 release=*) GH_RELEASE_TAG=${OPTARG#release=};;
                 silent) VERBOSE=0;;
                 verbose) VERBOSE=$(( VERBOSE + 1 ));;
+                zip) archive_suffix=.zip;;
                 *) sh_die_err 2 "Invalid option --${OPTARG}";;
             esac;;
         esac
@@ -526,6 +536,9 @@ main() {
     # shellcheck disable=SC2086 # We actually need word splitting to create new parameters
     set -- ${args// --help / }
 
+    if [ "${archive_suffix}" = ".zip" ]; then
+        _REQUIREMENTS="${_REQUIREMENTS} unzip"
+    fi
     # shellcheck disable=SC2086 # We actually need word splitting of _REQUIREMENTS here
     scripts_requires ${_REQUIREMENTS} || sh_die_err $? "first install missing requirements"
 
