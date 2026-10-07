@@ -21,7 +21,7 @@
 # Author: Markus Heiser <markus.heiser@darmarit.de>
 # Keywords: NerdFonts
 #
-scriptversion="3.0.0"
+scriptversion="2.1.0"
 # Nerd Fonts Version: 3.5.0
 
 # shellcheck enable=require-variable-braces
