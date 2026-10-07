@@ -125,7 +125,6 @@ The target directory is determined to be
 EOF
 }
 cmd_install() {
-    local font_names="${1-}"
     local tmp_folder
     local font_list
     local font_list_size
@@ -138,11 +137,10 @@ cmd_install() {
         sh_die_err 42 "no fonts to install"
     fi
 
-    # shellcheck disable=SC2086 # We actually need word splitting of font_names here in the else
-    if sh_in_array "all" ${font_names}; then
+    if sh_in_array "all" "$@"; then
         msg_info "install all ${font_list_size} fonts"
         msg_warn "installing all fonts will take its time / time for a coffee break"
-    elif [ "${font_names}" = "" ]; then
+    elif [ "$#" -eq 0 ]; then
         PS3="Enter a number: "
         select font_name in ${font_list} "all"; do
             # shellcheck disable=SC2086 # We actually need word splitting of font_list here in the else
@@ -163,7 +161,7 @@ cmd_install() {
             sh_die_err 42 "font ${font_name} does not exists in release ${GH_RELEASE_TAG}"
         font_list="${font_name}"
     else
-        font_list="${font_names}"
+        font_list=$*
     fi
     msg_info "install fonts into folder: ${FONT_DIR}"
     tmp_folder="$(mktemp -d)"
