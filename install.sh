@@ -102,6 +102,7 @@ cmd:
   remove    : uninstall all Nerd Fonts
 
 options:
+  -r, --release=TAG                   specify release tag, default is 'latest'
   -s, --silent                        give no progress messages (resets verbose)
   -v, --verbose                       increase verbosity level (up to 3 times)
   -h, --help                          show this help message
@@ -498,14 +499,16 @@ scripts_requires() {
 }
 
 main() {
-    while getopts ":hsv-:" option; do
+    while getopts ":hr:sv-:" option; do
         case "${option}" in
             \?) sh_die_err 2 "Invalid option -${OPTARG}";;
             h) invoke_help=TRUE;;
+            r) GH_RELEASE_TAG=$OPTARG;;
             s) VERBOSE=0;;
             v) VERBOSE=$(( VERBOSE + 1 ));;
             -) case "${OPTARG}" in
                 help) invoke_help=TRUE;;
+                release=*) GH_RELEASE_TAG=${OPTARG#release=};;
                 silent) VERBOSE=0;;
                 verbose) VERBOSE=$(( VERBOSE + 1 ));;
                 *) sh_die_err 2 "Invalid option --${OPTARG}";;
