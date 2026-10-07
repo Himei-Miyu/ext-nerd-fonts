@@ -171,13 +171,14 @@ cmd_install() {
     fi
     msg_info "install fonts into folder: ${FONT_DIR}"
     tmp_folder="$(mktemp -d)"
+    # shellcheck disable=SC2064 # We want to expand tmp_folder now, it's a local variable
+    trap "rm -rf -- '${tmp_folder}'" 0
     msg_debug "Workdir ${tmp_folder}"
     cd -- "${tmp_folder}" >/dev/null 2>&1 || sh_die_err 42 "can't cd ${tmp_folder}"
     for font in ${font_list}; do
         nerd_install_font "${font}"
     done
     cd - >/dev/null 2>&1
-    rm -rf -- "${tmp_folder}"
     if command fc-cache; then
         msg_info "fontconfig: build font information cache files"
         fc-cache
