@@ -148,7 +148,7 @@ cmd_install() {
         msg_info "install all ${font_list_size} fonts"
         msg_warn "installing all fonts will take its time / time for a coffee break"
     elif [ "$#" -eq 0 ]; then
-        PS3="Enter a number: "
+        PS3="Enter a number (or q to quit): "
         select font_name in ${font_list} "all"; do
             # shellcheck disable=SC2086 # We actually need word splitting of font_list here in the else
             if [ "${font_name}" = "all" ]; then
@@ -158,6 +158,9 @@ cmd_install() {
             elif sh_in_array "${font_name}" ${font_list}; then
                 font_list="${font_name}"
                 break
+            elif sh_in_array "${REPLY}" "q" "quit"; then
+                msg_debug "user aborted"
+                return
             else
                 msg_err "invalid choice."
             fi
