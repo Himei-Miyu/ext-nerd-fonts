@@ -191,7 +191,7 @@ cmd_install() {
 
 cmd_remove_help() {
     cat <<EOF
-Usage: $(basename "$0") remove
+Usage: $(basename "$0") remove [--help]
 
 Uninstall all previous installed Nerd Fonts.
 In fact purging the directory ${FONT_DIR}
@@ -212,6 +212,14 @@ cmd_remove() {
     fi
 }
 
+cmd_list_help() {
+    cat <<EOF
+Usage: $(basename "$0") list [--help]
+
+Fetch the name of all fonts for the given release.
+EOF
+}
+
 cmd_list() {
     [ "$#" -ne 0 ] && sh_die_err 42 "${FUNCNAME#"cmd."}: unknown arguments $*"
     if [ "${GH_RELEASE_TAG}" = "latest" ]; then
@@ -223,6 +231,11 @@ cmd_list() {
     nerd_font_list
 }
 
+cmd_env_help() {
+    cmd_env
+}
+
+# shellcheck disable=SC2120 # Called from cmd_env_help() without arguments
 cmd_env() {
     [ "$#" -ne 0 ] && sh_die_err 42 "${FUNCNAME#"cmd."}: unknown arguments $*"
     cat <<EOF
