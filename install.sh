@@ -205,7 +205,7 @@ cmd_remove() {
     [ "$#" -ne 0 ] && sh_die_err 42 "${FUNCNAME#"cmd."}: unknown arguments $*"
     if [ -d "${FONT_DIR}" ]; then
         msg_info "remove font folder ${FONT_DIR}"
-        rm -rf "${FONT_DIR}"
+        rm -rf -- "${FONT_DIR}"
         if command fc-cache; then
             msg_info "fontconfig: build font information cache files"
             fc-cache
@@ -361,13 +361,13 @@ nerd_install_font() {
         else
             unzip -j -q "${fontname}${archive_suffix}" -d "${fontname}"
         fi
-        mkdir -p "${FONT_DIR}"
+        mkdir -p -- "${FONT_DIR}"
         local found_one=
         for filename in "${fontname}"/*; do
             if [[ "${filename##*.}" =~ ${FONT_FORMATS} ]]; then
                 dst="${FONT_DIR}/$(basename "${filename}")"
                 msg_debug "install font: ${dst}"
-                mv "${filename}" "${dst}"
+                mv -- "${filename}" "${dst}"
                 found_one=true
             fi
         done
