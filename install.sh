@@ -22,7 +22,7 @@
 # Keywords: NerdFonts
 #
 scriptversion="2.1.0"
-# Nerd Fonts Version: 3.5.0
+# Nerd Fonts Version: 3.5.1
 
 # shellcheck enable=require-variable-braces
 

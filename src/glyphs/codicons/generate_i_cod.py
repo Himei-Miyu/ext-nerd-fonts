@@ -14,7 +14,7 @@ import sys
 
 # Double-quotes required here, for version-bump.sh:
 # version-bump.sh is not working here, need to adjust manually!
-version = "3.5.0"
+version = "3.5.1"
 
 cod_version = '0.0.45'
 
