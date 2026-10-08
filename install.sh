@@ -95,6 +95,7 @@ options:
   -v, --verbose         increase verbosity level (up to 3 times)
   -z, --zip             use zip archive (needed for older releases)
   -h, --help            show this help message
+      --version         show version information
 EOF
 }
 
@@ -544,6 +545,7 @@ process_options() {
                 release=*) GH_RELEASE_TAG=${OPTARG#release=};;
                 silent) VERBOSE=0;;
                 verbose) VERBOSE=$(( VERBOSE + 1 ));;
+                version) echo "Nerd Fonts installer ${scriptversion}"; exit 0;;
                 zip) archive_suffix=.zip;;
                 *) sh_die_err 2 "Invalid option --${OPTARG}";;
             esac;;
