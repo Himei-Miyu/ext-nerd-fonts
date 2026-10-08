@@ -204,6 +204,8 @@ EOF
 cmd_remove() {
     [ "$#" -ne 0 ] && sh_die_err 42 "${FUNCNAME#"cmd."}: unknown arguments $*"
     if [ -d "${FONT_DIR}" ]; then
+        # shellcheck disable=SC2010 # We can not use a glob, we want to count with grep
+        msg_debug "removing $(cd -- "${FONT_DIR}" && ls -R1 . | grep -cEv "^$|^\.:$|^\./") files"
         msg_info "remove font folder ${FONT_DIR}"
         rm -rf -- "${FONT_DIR}"
         if command fc-cache; then
