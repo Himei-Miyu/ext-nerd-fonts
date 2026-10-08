@@ -44,7 +44,7 @@ fi
 # environment
 # -----------
 
-VERBOSE="${VERBOSE:-0}"
+VERBOSE="${VERBOSE:-1}"
 TERM="${TERM:-}"
 # https://docs.github.com/de/rest/releases/releases?#get-a-release-by-tag-name
 GH_API_VERSION="${GH_API_VERSION:-2022-11-28}"
