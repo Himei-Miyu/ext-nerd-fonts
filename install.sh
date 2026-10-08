@@ -80,6 +80,7 @@ _REQUIREMENTS="curl mktemp sed tar wc"
 _GH_RELEASE_DATA=
 _GH_ASSET_DATA=
 invoke_help=
+dry_run=
 archive_suffix=.tar.xz
 
 # command line interface
@@ -103,11 +104,12 @@ cmd:
   remove    : uninstall all Nerd Fonts
 
 options:
-  -r, --release=TAG                   specify release tag, default is 'latest'
-  -s, --silent                        give no progress messages (resets verbose)
-  -v, --verbose                       increase verbosity level (up to 3 times)
-  -z, --zip                           use zip archive (needed for older releases)
-  -h, --help                          show this help message
+  -d, --dry             do not execute, show what would happen (pair with -v)
+  -r, --release=TAG     specify release tag, default is 'latest'
+  -s, --silent          give no progress messages (resets verbose)
+  -v, --verbose         increase verbosity level (up to 3 times)
+  -z, --zip             use zip archive (needed for older releases)
+  -h, --help            show this help message
 
 required tools:
   ${_REQUIREMENTS}
@@ -188,7 +190,7 @@ cmd_install() {
     cd - >/dev/null 2>&1
     if command fc-cache; then
         msg_info "fontconfig: build font information cache files"
-        fc-cache
+        [ -z "${dry_run}" ] && fc-cache
     fi
 }
 
@@ -207,10 +209,10 @@ cmd_remove() {
         # shellcheck disable=SC2010 # We can not use a glob, we want to count with grep
         msg_debug "removing $(cd -- "${FONT_DIR}" && ls -R1 . | grep -cEv "^$|^\.:$|^\./") files"
         msg_info "remove font folder ${FONT_DIR}"
-        rm -rf -- "${FONT_DIR}"
+        [ -z "${dry_run}" ] && rm -rf -- "${FONT_DIR}"
         if command fc-cache; then
             msg_info "fontconfig: build font information cache files"
-            fc-cache
+            [ -z "${dry_run}" ] && fc-cache
         fi
     else
         msg_err "Nerd Fonts not installed at ${FONT_DIR}"
@@ -363,13 +365,13 @@ nerd_install_font() {
         else
             unzip -j -q "${fontname}${archive_suffix}" -d "${fontname}"
         fi
-        mkdir -p -- "${FONT_DIR}"
+        [ -z "${dry_run}" ] && mkdir -p -- "${FONT_DIR}"
         local found_one=
         for filename in "${fontname}"/*; do
             if [[ "${filename##*.}" =~ ${FONT_FORMATS} ]]; then
                 dst="${FONT_DIR}/$(basename "${filename}")"
                 msg_debug "install font: ${dst}"
-                mv -- "${filename}" "${dst}"
+                [ -z "${dry_run}" ] && mv -- "${filename}" "${dst}"
                 found_one=true
             fi
         done
@@ -509,15 +511,17 @@ scripts_requires() {
 }
 
 main() {
-    while getopts ":hr:svz-:" option; do
+    while getopts ":dhr:svz-:" option; do
         case "${option}" in
             \?) sh_die_err 2 "Invalid option -${OPTARG}";;
+            d) dry_run=TRUE;;
             h) invoke_help=TRUE;;
             r) GH_RELEASE_TAG=$OPTARG;;
             s) VERBOSE=0;;
             v) VERBOSE=$(( VERBOSE + 1 ));;
             z) archive_suffix=.zip;;
             -) case "${OPTARG}" in
+                dry) dry_run=TRUE;;
                 help) invoke_help=TRUE;;
                 release=*) GH_RELEASE_TAG=${OPTARG#release=};;
                 silent) VERBOSE=0;;
@@ -538,6 +542,9 @@ main() {
     # shellcheck disable=SC2086 # We actually need word splitting to create new parameters
     set -- ${args// --help / }
 
+    if [ -n "${dry_run}" ]; then
+        msg_warn "dry run: No files will be created or removed"
+    fi
     if [ "${archive_suffix}" = ".zip" ]; then
         _REQUIREMENTS="${_REQUIREMENTS} unzip"
     fi
