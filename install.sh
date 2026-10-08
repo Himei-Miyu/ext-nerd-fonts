@@ -86,6 +86,18 @@ archive_suffix=.tar.xz
 # command line interface
 # ----------------------
 
+options_help() {
+    cat <<EOF
+options:
+  -d, --dry             do not execute, show what would happen (pair with -v)
+  -r, --release=TAG     specify release tag, default is 'latest'
+  -s, --silent          give no progress messages (resets verbose)
+  -v, --verbose         increase verbosity level (up to 3 times)
+  -z, --zip             use zip archive (needed for older releases)
+  -h, --help            show this help message
+EOF
+}
+
 cmd_help() {
     cat <<EOF
 Usage: $(basename "$0") [option] <cmd>
@@ -103,13 +115,7 @@ cmd:
   install   : selectively install (or update) a font, a list of fonts or *all* fonts
   remove    : uninstall all Nerd Fonts
 
-options:
-  -d, --dry             do not execute, show what would happen (pair with -v)
-  -r, --release=TAG     specify release tag, default is 'latest'
-  -s, --silent          give no progress messages (resets verbose)
-  -v, --verbose         increase verbosity level (up to 3 times)
-  -z, --zip             use zip archive (needed for older releases)
-  -h, --help            show this help message
+$(options_help)
 
 required tools:
   ${_REQUIREMENTS}
@@ -510,7 +516,7 @@ scripts_requires() {
     return "${exit_val}"
 }
 
-main() {
+process_options() {
     while getopts ":dhr:svz-:" option; do
         case "${option}" in
             \?) sh_die_err 2 "Invalid option -${OPTARG}";;
@@ -531,16 +537,19 @@ main() {
             esac;;
         esac
     done
+}
 
+main() {
+    process_options "$@"
     shift $((OPTIND - 1))
+    OPTIND=1
 
     local cmd="${1:-help}"
     shift || true
-    # Pull --help out of the remaining parameters
-    sh_in_array "--help" "$@" && invoke_help=TRUE
-    local args=" $* "
-    # shellcheck disable=SC2086 # We actually need word splitting to create new parameters
-    set -- ${args// --help / }
+
+    # Same options after command
+    process_options "$@"
+    shift $((OPTIND - 1))
 
     if [ -n "${dry_run}" ]; then
         msg_warn "dry run: No files will be created or removed"
