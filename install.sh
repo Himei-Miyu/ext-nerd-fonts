@@ -99,6 +99,36 @@ options:
 EOF
 }
 
+fetch_option_argument() {
+    [ "${OPTIND}" -gt "$#" ] && sh_die_err 2 "Option --release requires an argument"
+    echo "${*:OPTIND:1}"
+}
+
+process_options() {
+    while getopts ":dhr:svz-:" option; do
+        case "${option}" in
+            \?) sh_die_err 2 "Invalid option -${OPTARG}";;
+            d) dry_run=TRUE;;
+            h) invoke_help=TRUE;;
+            r) GH_RELEASE_TAG=$OPTARG;;
+            s) VERBOSE=0;;
+            v) VERBOSE=$(( VERBOSE + 1 ));;
+            z) archive_suffix=.zip;;
+            -) case "${OPTARG}" in
+                dry) dry_run=TRUE;;
+                help) invoke_help=TRUE;;
+                release=*) GH_RELEASE_TAG=${OPTARG#release=};;
+                release) GH_RELEASE_TAG=$(fetch_option_argument "$@"); OPTIND=$(( OPTIND + 1 ));;
+                silent) VERBOSE=0;;
+                verbose) VERBOSE=$(( VERBOSE + 1 ));;
+                version) printf "Nerd Fonts installer %s\n" "${scriptversion}"; exit 0;;
+                zip) archive_suffix=.zip;;
+                *) sh_die_err 2 "Invalid option --${OPTARG}";;
+            esac;;
+        esac
+    done
+}
+
 cmd_help() {
     cat <<EOF
 Usage: $(basename "$0") [<options>] <cmd> [<args>]
@@ -527,35 +557,6 @@ scripts_requires() {
         shift
     done
     return "${exit_val}"
-}
-
-process_options() {
-    while getopts ":dhr:svz-:" option; do
-        case "${option}" in
-            \?) sh_die_err 2 "Invalid option -${OPTARG}";;
-            d) dry_run=TRUE;;
-            h) invoke_help=TRUE;;
-            r) GH_RELEASE_TAG=$OPTARG;;
-            s) VERBOSE=0;;
-            v) VERBOSE=$(( VERBOSE + 1 ));;
-            z) archive_suffix=.zip;;
-            -) case "${OPTARG}" in
-                dry) dry_run=TRUE;;
-                help) invoke_help=TRUE;;
-                release=*) GH_RELEASE_TAG=${OPTARG#release=};;
-                release)
-                    [ "${OPTIND}" -gt "$#" ] && sh_die_err 2 "Option --release requires an argument"
-                    GH_RELEASE_TAG=${*:OPTIND:1}
-                    OPTIND=$(( OPTIND + 1 ))
-                    ;;
-                silent) VERBOSE=0;;
-                verbose) VERBOSE=$(( VERBOSE + 1 ));;
-                version) echo "Nerd Fonts installer ${scriptversion}"; exit 0;;
-                zip) archive_suffix=.zip;;
-                *) sh_die_err 2 "Invalid option --${OPTARG}";;
-            esac;;
-        esac
-    done
 }
 
 main() {
