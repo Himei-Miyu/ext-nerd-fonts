@@ -91,8 +91,8 @@ options_help() {
 options:
   -d, --dry             do not execute, show what would happen (pair with -v)
   -r, --release TAG     specify release tag, default is 'latest'
-  -s, --silent          give no progress messages (resets verbose)
-  -v, --verbose         increase verbosity level (up to 3 times)
+  -s, --silent          give no progress messages
+  -v, --verbose         increase verbosity level (can be used multiple times)
   -z, --zip             use zip archive (needed for older releases)
   -h, --help            show this help message
       --version         show version information
@@ -308,10 +308,10 @@ XDG_DATA_HOME=${XDG_DATA_HOME}
 TERM=${TERM}
 
 VERBOSE can be set to
- 0 : silent
+ 0 : silent          # --quiet
  1 : info
- 2 : debug
- 3 : deep debug
+ 2 : debug           # --verbose
+ 3 : deep debug      # --verbose --verbose
 EOF
 }
 
@@ -591,9 +591,8 @@ main() {
         cmd_help
     else
         if [ -z "${invoke_help}" ]; then
-            echo "Nerd Fonts installer -- Version ${scriptversion}"
-            echo "                     -- Bash ${BASH_VERSION}"
-            echo
+            printf "Nerd Fonts installer -- Version %s\n                     -- Bash %s\n\n" \
+                "${scriptversion}" "${BASH_VERSION}" >&2
         fi
         if [ "${cmd}" = "list" ] || [ "${cmd}" = "install" ]; then
             if [ -z "${invoke_help}" ]; then

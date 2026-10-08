@@ -254,22 +254,21 @@ No need to clone the complete repository (which does not contain all patched fon
 ```sh
 curl -s https://raw.githubusercontent.com/ryanoasis/nerd-fonts/master/install.sh -o install.sh
 chmod u+x install.sh
-./install.sh --help
+./install.sh help
 ```
 
 Examples:
 
 ```sh
 ./install.sh list
-./install.sh install <FontName>
+./install.sh install                           # interactive mode
 ./install.sh install Hack
 ./install.sh install HeavyData
-./install.sh install <FontName1> <FontName2> ...
-./install.sh install Hack HeavyData
+./install.sh install Hack heAvYdatA            # not case sensitive
 ./install.sh install all
-./install.sh install # interactive mode
-VERBOSE=3 ./install.sh install DaddyTimeMono
-GH_RELEASE_TAG=v3.2.1 ./install.sh list
+./install.sh --verbose install DaddyTimeMono
+./install.sh list --release v3.2.1
+./install.sh remove --dry
 ```
 
 ### `Option 4: Unofficial Chocolatey or Scoop Repositories`
