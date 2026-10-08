@@ -21,7 +21,7 @@
 # Author: Markus Heiser <markus.heiser@darmarit.de>
 # Keywords: NerdFonts
 #
-scriptversion="2.0.1"
+scriptversion="2.1.0"
 # Nerd Fonts Version: 3.5.0
 
 # shellcheck enable=require-variable-braces
@@ -36,6 +36,7 @@ scriptversion="2.0.1"
 # and that also needs to be checked
 
 set -euo pipefail
+shopt -s nocasematch
 if shopt | grep -q inherit_errexit; then
     shopt -s inherit_errexit
 fi
@@ -78,13 +79,59 @@ fi
 _REQUIREMENTS="curl mktemp sed tar wc"
 _GH_RELEASE_DATA=
 _GH_ASSET_DATA=
+invoke_help=
+dry_run=
+archive_suffix=.tar.xz
 
 # command line interface
 # ----------------------
 
+options_help() {
+    cat <<EOF
+options:
+  -d, --dry             do not execute, show what would happen (pair with -v)
+  -r, --release TAG     specify release tag, default is 'latest'
+  -s, --silent          give no progress messages
+  -v, --verbose         increase verbosity level (can be used multiple times)
+  -z, --zip             use zip archive (needed for older releases)
+  -h, --help            show this help message
+      --version         show version information
+EOF
+}
+
+fetch_option_argument() {
+    [ "${OPTIND}" -gt "$#" ] && sh_die_err 2 "Option --release requires an argument"
+    echo "${*:OPTIND:1}"
+}
+
+process_options() {
+    while getopts ":dhr:svz-:" option; do
+        case "${option}" in
+            \?) sh_die_err 2 "Invalid option -${OPTARG}";;
+            d) dry_run=TRUE;;
+            h) invoke_help=TRUE;;
+            r) GH_RELEASE_TAG=$OPTARG;;
+            s) VERBOSE=0;;
+            v) VERBOSE=$(( VERBOSE + 1 ));;
+            z) archive_suffix=.zip;;
+            -) case "${OPTARG}" in
+                dry) dry_run=TRUE;;
+                help) invoke_help=TRUE;;
+                release=*) GH_RELEASE_TAG=${OPTARG#release=};;
+                release) GH_RELEASE_TAG=$(fetch_option_argument "$@"); OPTIND=$(( OPTIND + 1 ));;
+                silent) VERBOSE=0;;
+                verbose) VERBOSE=$(( VERBOSE + 1 ));;
+                version) printf "Nerd Fonts installer %s\n" "${scriptversion}"; exit 0;;
+                zip) archive_suffix=.zip;;
+                *) sh_die_err 2 "Invalid option --${OPTARG}";;
+            esac;;
+        esac
+    done
+}
+
 cmd_help() {
     cat <<EOF
-Usage: $(basename "$0") <cmd>
+Usage: $(basename "$0") [<options>] <cmd> [<args>]
 
 Install and update Nerd Fonts [1] from the GitHub releases [2].
 See \`$(basename "$0") install --help\` for details.
@@ -96,8 +143,10 @@ cmd:
   help      : show this help message
   env       : show environment
   list      : list released fonts
-  install   : selectively install (or update) a font or *all* fonts
+  install   : selectively install (or update) a font, a list of fonts or *all* fonts
   remove    : uninstall all Nerd Fonts
+
+$(options_help)
 
 required tools:
   ${_REQUIREMENTS}
@@ -106,13 +155,15 @@ EOF
 
 cmd_install_help() {
     cat <<EOF
-Usage: $(basename "$0") install [<fontname>|all]
+Usage: $(basename "$0") install [<options>] [<fontname>|all]...
+
+Selectively install font(s) or *all* fonts to FONT_DIR.
 
 fontname:
   The name of the font to be installed can be specified, or 'all' can be
   specified to install all fonts.
 
-Selectively install one font or *all* fonts to FONT_DIR.
+$(options_help)
 
 If no argument is given a list of available fonts will be displayed,
 and a font can be selected from the list.
@@ -124,8 +175,8 @@ The target directory is determined to be
   ${FONT_DIR}
 EOF
 }
+
 cmd_install() {
-    local font_name="${1-}"
     local tmp_folder
     local font_list
     local font_list_size
@@ -134,11 +185,15 @@ cmd_install() {
     # shellcheck disable=SC2086 # We actually need word splitting of font_list here
     font_list_size=$(sh_count ${font_list})
 
-    if [ "${font_name}" = "all" ]; then
+    if [ "${font_list_size}" -eq 0 ]; then
+        sh_die_err 5 "no fonts to install"
+    fi
+
+    if sh_in_array "all" "$@"; then
         msg_info "install all ${font_list_size} fonts"
         msg_warn "installing all fonts will take its time / time for a coffee break"
-    elif [ "${font_name}" = "" ]; then
-        PS3="Enter a number: "
+    elif [ "$#" -eq 0 ]; then
+        PS3="Enter a number (or q to quit): "
         select font_name in ${font_list} "all"; do
             # shellcheck disable=SC2086 # We actually need word splitting of font_list here in the else
             if [ "${font_name}" = "all" ]; then
@@ -148,54 +203,72 @@ cmd_install() {
             elif sh_in_array "${font_name}" ${font_list}; then
                 font_list="${font_name}"
                 break
+            elif sh_in_array "${REPLY}" "q" "quit"; then
+                msg_debug "user aborted"
+                return
             else
                 msg_err "invalid choice."
             fi
         done
         msg_debug "user selected font ${font_name}"
-    else
         # shellcheck disable=SC2086 # We actually need word splitting of font_list here
         sh_in_array "${font_name}" ${font_list} ||
             sh_die_err 42 "font ${font_name} does not exists in release ${GH_RELEASE_TAG}"
         font_list="${font_name}"
+    else
+        font_list=$*
     fi
-
     msg_info "install fonts into folder: ${FONT_DIR}"
     tmp_folder="$(mktemp -d)"
+    # shellcheck disable=SC2064 # We want to expand tmp_folder now, it's a local variable
+    trap "rm -rf -- '${tmp_folder}'" 0
     msg_debug "Workdir ${tmp_folder}"
     cd -- "${tmp_folder}" >/dev/null 2>&1 || sh_die_err 42 "can't cd ${tmp_folder}"
     for font in ${font_list}; do
         nerd_install_font "${font}"
     done
     cd - >/dev/null 2>&1
-    rm -rf -- "${tmp_folder}"
     if command fc-cache; then
         msg_info "fontconfig: build font information cache files"
-        fc-cache
+        [ -z "${dry_run}" ] && fc-cache
     fi
 }
 
 cmd_remove_help() {
     cat <<EOF
-Usage: $(basename "$0") remove
+Usage: $(basename "$0") remove [<options>]
 
 Uninstall all previous installed Nerd Fonts.
 In fact purging the directory ${FONT_DIR}
+
+$(options_help)
 EOF
 }
 
 cmd_remove() {
     [ "$#" -ne 0 ] && sh_die_err 42 "${FUNCNAME#"cmd."}: unknown arguments $*"
     if [ -d "${FONT_DIR}" ]; then
+        # shellcheck disable=SC2010 # We can not use a glob, we want to count with grep
+        msg_debug "removing $(cd -- "${FONT_DIR}" && ls -R1 . | grep -cEv "^$|^\.:$|^\./") files"
         msg_info "remove font folder ${FONT_DIR}"
-        rm -rf "${FONT_DIR}"
+        [ -z "${dry_run}" ] && rm -rf -- "${FONT_DIR}"
         if command fc-cache; then
             msg_info "fontconfig: build font information cache files"
-            fc-cache
+            [ -z "${dry_run}" ] && fc-cache
         fi
     else
         msg_err "Nerd Fonts not installed at ${FONT_DIR}"
     fi
+}
+
+cmd_list_help() {
+    cat <<EOF
+Usage: $(basename "$0") list [<options>]
+
+Fetch the name of all fonts for the given release.
+
+$(options_help)
+EOF
 }
 
 cmd_list() {
@@ -207,6 +280,16 @@ cmd_list() {
         msg_info "${GH_OWNER}/${GH_REPO}: ${GH_RELEASE_TAG}"
     fi
     nerd_font_list
+}
+
+cmd_env_help() {
+    cat <<EOF
+Usage: $(basename "$0") env [<options>]
+
+Show all relevant/used environment variable values.
+
+$(options_help)
+EOF
 }
 
 cmd_env() {
@@ -225,10 +308,10 @@ XDG_DATA_HOME=${XDG_DATA_HOME}
 TERM=${TERM}
 
 VERBOSE can be set to
- 0 : silent
+ 0 : silent          # --quiet
  1 : info
- 2 : debug
- 3 : deep debug
+ 2 : debug           # --verbose
+ 3 : deep debug      # --verbose --verbose
 EOF
 }
 
@@ -237,7 +320,6 @@ EOF
 
 nerd_assemble_released_archives() {
     # Returns pairs of "Archive-basename asset-ID"
-    local archive_suffix=.tar.xz
     local assets_regex="^ *\"assets\":"
     local aid_regex="^ *\"id\":"
     local name_regex="^ *\"name\":"
@@ -273,6 +355,9 @@ nerd_assemble_released_archives() {
 
 nerd_released_archives() {
     _GH_ASSET_DATA="${_GH_ASSET_DATA:-$(nerd_assemble_released_archives)}"
+    if [ "${archive_suffix}" != ".zip" ] && [ -z "${_GH_ASSET_DATA}" ]; then
+        sh_die_err 5 "no .xz archives found, maybe use --zip"
+    fi
     printf "%s\n" "${_GH_ASSET_DATA}"
 }
 
@@ -286,8 +371,17 @@ nerd_font_list() {
         done
 }
 
+nerd_find_spelling() {
+    nerd_released_archives |
+        while IFS= read -r line; do
+            if [[ "${1}" =~ ${line%%|*} ]]; then
+                echo "${line%%|*}"
+                return
+            fi
+        done
+}
+
 nerd_find_asset_id() {
-    local aid=
     nerd_released_archives |
         while IFS= read -r line; do
             if [ "${line%%|*}" = "${1}" ]; then
@@ -300,29 +394,38 @@ nerd_install_font() {
     # usage:  nerd_install_font <font name>
 
     local aid
-    aid=$(nerd_find_asset_id "${1}")
-    if [ -z "${aid}" ]; then
-        sh_die_err 42 "Can not find asset ID of ${1}"
+    local fontname
+    fontname=$(nerd_find_spelling "${1}")
+    if [ -z "${fontname}" ]; then
+        sh_die_err 3 "Can not find font ${1}"
     fi
-    msg_info "download & install font: ${1} (asset ${aid})"
+    aid=$(nerd_find_asset_id "${fontname}")
+    if [ -z "${aid}" ]; then
+        sh_die_err 42 "Can not find asset ID of ${fontname}"
+    fi
+    msg_info "download & install font: ${fontname} (${GH_RELEASE_TAG}, asset ${aid})"
     (
         set -e
         local dst
-        gh_download_asset "${1}.tar.xz" "${aid}"
-        mkdir -p "${1}"
-        tar xf "${1}.tar.xz" -C "${1}"
-        mkdir -p "${FONT_DIR}"
+        gh_download_asset "${fontname}${archive_suffix}" "${aid}"
+        mkdir -p "${fontname}"
+        if [ "${archive_suffix}" != ".zip" ]; then
+            tar xf "${fontname}${archive_suffix}" -C "${fontname}"
+        else
+            unzip -j -q "${fontname}${archive_suffix}" -d "${fontname}"
+        fi
+        [ -z "${dry_run}" ] && mkdir -p -- "${FONT_DIR}"
         local found_one=
-        for filename in "${1}"/*; do
+        for filename in "${fontname}"/*; do
             if [[ "${filename##*.}" =~ ${FONT_FORMATS} ]]; then
                 dst="${FONT_DIR}/$(basename "${filename}")"
                 msg_debug "install font: ${dst}"
-                mv "${filename}" "${dst}"
+                [ -z "${dry_run}" ] && mv -- "${filename}" "${dst}"
                 found_one=true
             fi
         done
         if [ -z "${found_one}" ]; then
-            msg_warn "no font file matching \"${FONT_FORMATS}\" for ${1}"
+            msg_warn "no font file matching \"${FONT_FORMATS}\" for ${fontname}"
         fi
     )
     sh_prompt_err $?
@@ -457,8 +560,23 @@ scripts_requires() {
 }
 
 main() {
+    process_options "$@"
+    shift $((OPTIND - 1))
+    OPTIND=1
+
     local cmd="${1:-help}"
     shift || true
+
+    # Same options after command
+    process_options "$@"
+    shift $((OPTIND - 1))
+
+    if [ -n "${dry_run}" ]; then
+        msg_warn "dry run: No files will be created or removed"
+    fi
+    if [ "${archive_suffix}" = ".zip" ]; then
+        _REQUIREMENTS="${_REQUIREMENTS} unzip"
+    fi
     # shellcheck disable=SC2086 # We actually need word splitting of _REQUIREMENTS here
     scripts_requires ${_REQUIREMENTS} || sh_die_err $? "first install missing requirements"
 
@@ -469,20 +587,26 @@ main() {
         AUTH="X-noop;"
     fi
 
-    if [ "${cmd}" = "help" ] || [ "${cmd}" = "--help" ]; then
+    if [ "${cmd}" = "help" ]; then
         cmd_help
     else
+        if [ -z "${invoke_help}" ]; then
+            printf "Nerd Fonts installer -- Version %s\n                     -- Bash %s\n\n" \
+                "${scriptversion}" "${BASH_VERSION}" >&2
+        fi
         if [ "${cmd}" = "list" ] || [ "${cmd}" = "install" ]; then
-            # Needed to fill 'cache' environment variables:
-            gh_release_data >/dev/null
-            nerd_released_archives >/dev/null
+            if [ -z "${invoke_help}" ]; then
+                # Needed to fill 'cache' environment variables:
+                gh_release_data >/dev/null
+                nerd_released_archives >/dev/null
+            fi
         fi
         _type="$(type -t "cmd_${cmd}")" || true
         if [ "${_type}" != "function" ]; then
             sh_die_err 42 "unknown command: ${cmd} / use --help"
         fi
 
-        if [ "${1-}" = '--help' ]; then
+        if [ -n "${invoke_help}" ]; then
             _type="$(type -t "cmd_${cmd}_help")" || true
             if [ "${_type}" = 'function' ]; then
                 "cmd_${cmd}_help"
@@ -495,9 +619,6 @@ main() {
         fi
     fi
 }
-
-echo "Nerd Fonts installer -- Version ${scriptversion}"
-echo "                     -- Bash ${BASH_VERSION}"
 
 if [ ! -t 2 ] ||
     [ "${TERM:-unknown}" = "unknown" ] ||
