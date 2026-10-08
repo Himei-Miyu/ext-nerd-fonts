@@ -90,7 +90,7 @@ options_help() {
     cat <<EOF
 options:
   -d, --dry             do not execute, show what would happen (pair with -v)
-  -r, --release=TAG     specify release tag, default is 'latest'
+  -r, --release TAG     specify release tag, default is 'latest'
   -s, --silent          give no progress messages (resets verbose)
   -v, --verbose         increase verbosity level (up to 3 times)
   -z, --zip             use zip archive (needed for older releases)
@@ -543,6 +543,11 @@ process_options() {
                 dry) dry_run=TRUE;;
                 help) invoke_help=TRUE;;
                 release=*) GH_RELEASE_TAG=${OPTARG#release=};;
+                release)
+                    [ "${OPTIND}" -gt "$#" ] && sh_die_err 2 "Option --release requires an argument"
+                    GH_RELEASE_TAG=${*:OPTIND:1}
+                    OPTIND=$(( OPTIND + 1 ))
+                    ;;
                 silent) VERBOSE=0;;
                 verbose) VERBOSE=$(( VERBOSE + 1 ));;
                 version) echo "Nerd Fonts installer ${scriptversion}"; exit 0;;
