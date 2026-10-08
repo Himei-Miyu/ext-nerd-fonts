@@ -100,7 +100,7 @@ EOF
 
 cmd_help() {
     cat <<EOF
-Usage: $(basename "$0") [option] <cmd>
+Usage: $(basename "$0") [<options>] <cmd> [<args>]
 
 Install and update Nerd Fonts [1] from the GitHub releases [2].
 See \`$(basename "$0") install --help\` for details.
@@ -124,13 +124,15 @@ EOF
 
 cmd_install_help() {
     cat <<EOF
-Usage: $(basename "$0") install [--help] [<fontname>|all]...
+Usage: $(basename "$0") install [<options>] [<fontname>|all]...
+
+Selectively install font(s) or *all* fonts to FONT_DIR.
 
 fontname:
   The name of the font to be installed can be specified, or 'all' can be
   specified to install all fonts.
 
-Selectively install font(s) or *all* fonts to FONT_DIR.
+$(options_help)
 
 If no argument is given a list of available fonts will be displayed,
 and a font can be selected from the list.
@@ -142,6 +144,7 @@ The target directory is determined to be
   ${FONT_DIR}
 EOF
 }
+
 cmd_install() {
     local tmp_folder
     local font_list
@@ -202,10 +205,12 @@ cmd_install() {
 
 cmd_remove_help() {
     cat <<EOF
-Usage: $(basename "$0") remove [--help]
+Usage: $(basename "$0") remove [<options>]
 
 Uninstall all previous installed Nerd Fonts.
 In fact purging the directory ${FONT_DIR}
+
+$(options_help)
 EOF
 }
 
@@ -227,9 +232,11 @@ cmd_remove() {
 
 cmd_list_help() {
     cat <<EOF
-Usage: $(basename "$0") list [--help]
+Usage: $(basename "$0") list [<options>]
 
 Fetch the name of all fonts for the given release.
+
+$(options_help)
 EOF
 }
 
@@ -245,10 +252,15 @@ cmd_list() {
 }
 
 cmd_env_help() {
-    cmd_env
+    cat <<EOF
+Usage: $(basename "$0") env [<options>]
+
+Show all relevant/used environment variable values.
+
+$(options_help)
+EOF
 }
 
-# shellcheck disable=SC2120 # Called from cmd_env_help() without arguments
 cmd_env() {
     [ "$#" -ne 0 ] && sh_die_err 42 "${FUNCNAME#"cmd."}: unknown arguments $*"
     cat <<EOF
@@ -570,6 +582,11 @@ main() {
     if [ "${cmd}" = "help" ]; then
         cmd_help
     else
+        if [ -z "${invoke_help}" ]; then
+            echo "Nerd Fonts installer -- Version ${scriptversion}"
+            echo "                     -- Bash ${BASH_VERSION}"
+            echo
+        fi
         if [ "${cmd}" = "list" ] || [ "${cmd}" = "install" ]; then
             if [ -z "${invoke_help}" ]; then
                 # Needed to fill 'cache' environment variables:
@@ -595,9 +612,6 @@ main() {
         fi
     fi
 }
-
-echo "Nerd Fonts installer -- Version ${scriptversion}"
-echo "                     -- Bash ${BASH_VERSION}"
 
 if [ ! -t 2 ] ||
     [ "${TERM:-unknown}" = "unknown" ] ||
